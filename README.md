@@ -3,11 +3,13 @@
 Android VPN client berbasis VLESS + Xray dengan UI Jetpack Compose.
 
 ## Ringkasan Aplikasi
+
 - Protokol utama: VLESS (Xray core di-embed via `libXray.aar`).
 - Service: VPN foreground service dengan auto reconnect, ping monitor, wake lock opsional, dan notifikasi status.
 - Target perangkat: Android API 24+.
 
 ## Arsitektur Binary Dependency
+
 Repository source tidak perlu menyimpan binary besar.
 
 - `libXray.aar` diambil dari GitHub Release tag `binary-assets`.
@@ -17,6 +19,7 @@ Repository source tidak perlu menyimpan binary besar.
 Dengan model ini, source repo tetap ringan tapi build lokal/CI tetap jalan.
 
 ## Cara Build Lokal
+
 Jalankan dari folder `android/`:
 
 ```bash
@@ -25,10 +28,12 @@ Jalankan dari folder `android/`:
 ```
 
 Task `preBuild` otomatis memanggil:
+
 - `downloadLibXrayAar`
 - `downloadTun2socks`
 
 ## Override URL Binary Saat Lokal
+
 Jika ingin pakai URL custom (misalnya release private/fork), bisa override:
 
 ```bash
@@ -47,6 +52,7 @@ Alternatif via Gradle property:
 ```
 
 ## Output APK Lokal
+
 - `app/build/outputs/apk/phone/release/app-phone-arm64-v8a-release.apk`
 - `app/build/outputs/apk/phone/release/app-phone-armeabi-v7a-release.apk`
 - `app/build/outputs/apk/phone/release/app-phone-universal-release.apk`
@@ -54,16 +60,19 @@ Alternatif via Gradle property:
 - `app/build/outputs/apk/full/release/app-full-universal-release.apk`
 
 ## CI dan Release
+
 Workflow: `.github/workflows/build.yaml`
 
 Alur CI:
+
 - Build APK untuk target ABI utama.
 - Upload artifact run dengan nama prefix `JhopanStoreVPN-*`.
 - Saat push tag `v*`, release akan dipublish berisi:
-	- APK dengan nama `JhopanStoreVPN-...`
-	- `JhopanStoreVPN-libXray.aar`
+  - APK dengan nama `JhopanStoreVPN-...`
+  - `JhopanStoreVPN-libXray.aar`
 
 ## Alur Update Binary Sekali Upload
+
 Jika suatu saat mau ganti libXray/tun2socks:
 
 1. Upload asset baru ke release tag `binary-assets` (replace file lama).
