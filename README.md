@@ -30,8 +30,8 @@ Dibangun dengan antarmuka **Jetpack Compose** murni, arsitektur *binary dependen
 Aplikasi ini tidak sekadar VPN biasa; ini dirancang dengan berbagai fitur tingkat lanjut untuk memastikan **stabilitas, keamanan, dan kenyamanan maksimum** saat berselancar di internet:
 
 ### ⚡ Performa & Koneksi
-- **Core Xray Terintegrasi (VLESS)**: Ditenagai langsung oleh arsitektur Xray (via libXray.aar) untuk menyediakan koneksi protokol VLESS yang sangat responsif, ngebut, dan tangguh terhadap *Deep Packet Inspection* (DPI).
-- **Routing Cerdas Tanpa Root (tun2socks)**: Menggunakan engine libtun2socks.so secara efisien untuk menangkap dan merutekan seluruh lalu lintas aplikasi di sistem Android secara transparan. Tidak perlu akses *root*!
+- **Core Xray Terintegrasi (VLESS)**: Ditenagai langsung oleh arsitektur Xray (via `libXray.aar`) untuk menyediakan koneksi protokol VLESS yang sangat responsif, ngebut, dan tangguh terhadap *Deep Packet Inspection* (DPI).
+- **Routing Cerdas Tanpa Root (tun2socks)**: Menggunakan engine `libtun2socks.so` secara efisien untuk menangkap dan merutekan seluruh lalu lintas aplikasi di sistem Android secara transparan. Tidak perlu akses *root*!
 
 ### 🔄 Sistem Pemulihan Otonom
 Mencegah pemutusan jaringan yang mengganggu akibat transisi sinyal (misalnya dari Wi-Fi ke Seluler):
@@ -42,7 +42,7 @@ Mencegah pemutusan jaringan yang mengganggu akibat transisi sinyal (misalnya dar
 ### 📡 Monitoring & Stabilitas
 - **Real-Time Ping Monitor**: Pantau selalu kualitas sambungan (latensi) secara *live* di layar. Ritme pengecekan (*Ping Interval*) dapat disetel sesuai keinginan.
 - **Stabilitas Background Prioritas Tertinggi**:
-  - **Foreground Service Elite**: Membungkus mesin VPN dalam layanan dengan *Notifikasi Status* persisten yang elegan. Sangat sulit "di-kill" oleh *task killer* bawaan Android.
+  - **Foreground Service Elite**: Membungkus mesin VPN dalam layanan dengan *Notifikasi Status* persisten yang elegan. Sangat sulit `"di-kill"` oleh *task killer* bawaan Android.
   - **Wake Lock (Opsional)**: Senjata rahasia agar koneksi server dan CPU Android Anda tidak terhenti (*stand-by*) saat layar dikunci, menjamin koneksi selalu aktif di latar belakang.
 
 ### 🎨 Desain Modern
@@ -54,18 +54,18 @@ Mencegah pemutusan jaringan yang mengganggu akibat transisi sinyal (misalnya dar
 
 Kami memahami bahwa ukuran repositori yang membengkak adalah mimpi buruk bagi developer. Oleh karena itu, JhopanStoreVPN menggunakan **Arsitektur Binary Ramping**:
 
-1. **Anti-Bloatware Repo**: File .aar dan .so berukuran raksasa tidak diunggah ke dalam repositori utama.
+1. **Anti-Bloatware Repo**: File `.aar` dan `.so` berukuran raksasa tidak diunggah ke dalam repositori utama.
 2. **On-Demand Download**:
-   - libXray.aar diunduh otomatis secara dinamis dari GitHub Release tag \inary-assets\.
-   - libtun2socks.so diambil dari *upstream release* resmi setiap kali proses *build* awal berjalan.
+   - `libXray.aar` diunduh otomatis secara dinamis dari GitHub Release tag `binary-assets`.
+   - `libtun2socks.so` diambil dari *upstream release* resmi setiap kali proses *build* awal berjalan.
 3. **Build Varian Diferensiasi**:
-   - **phone**: Cepat dan ringan, dioptimalkan khusus untuk arsitektur modern ARM (v7a & v8a).
-   - **ull**: Versi universal yang mencakup x86_64 untuk emulasi dan kompatibilitas perangkat yang lebih luas.
+   - **`phone`**: Cepat dan ringan, dioptimalkan khusus untuk arsitektur modern ARM (v7a & v8a).
+   - **`full`**: Versi universal yang mencakup `x86_64` untuk emulasi dan kompatibilitas perangkat yang lebih luas.
 
 Output *build* lokal akan otomatis dipilah sesuai foldernya:
-\\\	ext
+```text
 app/build/outputs/apk/{varian}/release/app-{varian}-{arsitektur}-release.apk
-\\\
+```
 
 ---
 
@@ -80,18 +80,18 @@ Ingin nge-build dan memodifikasi proyek ini sendiri? Sangat mudah! Semuanya suda
 
 **Langkah-langkah Build:**
 
-1. Clone repositori ini dan masuk ke direktori ndroid/.
+1. Clone repositori ini dan masuk ke direktori `android/`.
 2. Buka terminal lalu eksekusi *Gradle Wrapper* berikut:
 
-\\\ash
+```bash
 # Build khusus untuk perangkat HP nyata (rekomendasi)
 ./gradlew assemblePhoneRelease
 
 # Build varian lengkap untuk Universal/Emulator
 ./gradlew assembleFullRelease
-\\\
+```
 
-> **✨ Keajaiban Terjadi di Balik Layar:** Task preBuild akan secara **otomatis** memicu proses unduhan library jaringan lewat modul downloadLibXrayAar & downloadTun2socks. Anda sama sekali tidak perlu mencari dan meletakkan file secara manual!
+> **✨ Keajaiban Terjadi di Balik Layar:** Task `preBuild` akan secara **otomatis** memicu proses unduhan library jaringan lewat modul `downloadLibXrayAar` & `downloadTun2socks`. Anda sama sekali tidak perlu mencari dan meletakkan file secara manual!
 
 ---
 
@@ -100,38 +100,35 @@ Ingin nge-build dan memodifikasi proyek ini sendiri? Sangat mudah! Semuanya suda
 Punya server aset *private* sendiri? Anda bisa mengganti secara leluasa dari mana unduhan file *binary* berasal dengan pengaturan *Environment Variables* atau melewati parameter bawaan Gradle:
 
 **Via Terminal (Environment):**
-\\\ash
+```bash
 set LIBXRAY_AAR_URL=https://github.com/<owner>/<repo>/.../libXray.aar
 set TUN2SOCKS_ARM64_URL=https://github.com/<owner>/<repo>/.../libtun2socks-arm64-v8a.so
 set TUN2SOCKS_ARMV7_URL=https://github.com/<owner>/<repo>/.../libtun2socks-armeabi-v7a.so
 
 ./gradlew assemblePhoneRelease
-\\\
+```
 
 **Via Baris Perintah Gradle Arguments:**
-\\\ash
-./gradlew assemblePhoneRelease \
-  -PlibXrayAarUrl=https://... \
-  -Ptun2socks.arm64-v8a.url=https://... \
-  -Ptun2socks.armeabi-v7a.url=https://...
-\\\
+```bash
+./gradlew assemblePhoneRelease -PlibXrayAarUrl=https://... -Ptun2socks.arm64-v8a.url=https://... -Ptun2socks.armeabi-v7a.url=https://...
+```
 
 ---
 
 ## 🔄 CI/CD & Pipeline Release
 
-Proyek ini telah dibekali dengan alur kerja *GitHub Actions* (.github/workflows/build.yaml) untuk integrasi otomatis tanpa campur tangan teknis tinggi.
+Proyek ini telah dibekali dengan alur kerja *GitHub Actions* (`.github/workflows/build.yaml`) untuk integrasi otomatis tanpa campur tangan teknis tinggi.
 
 **🛠 Alur Kerja CI (Continuous Integration):**
 1. Setiap proses *push* (*commit*) akan menjalankan linting, validasi, serta proses *build multi-ABI*.
-2. Secara otomatis menghasilkan *Artifact* instalasi dengan label elegan: JhopanStoreVPN-*.apk.
+2. Secara otomatis menghasilkan *Artifact* instalasi dengan label elegan: `JhopanStoreVPN-*.apk`.
 
 **📦 Otomasi Rilis Publik:**
-1. Anda cukup menekan tombol "*Draft a new release*" dan mencetak Tag berinisial huruf  (sebagai contoh: 1.0.0).
-2. Bot _GitHub Workflow_ akan mengambil alih kemudian merilis file APK siap pakai di tab Releases sekaligus mengunggah kembali JhopanStoreVPN-libXray.aar.
+1. Anda cukup menekan tombol "*Draft a new release*" dan mencetak Tag berinisial huruf `v` (sebagai contoh: `v1.0.0`).
+2. Bot _GitHub Workflow_ akan mengambil alih kemudian merilis file APK siap pakai di tab Releases sekaligus mengunggah kembali `JhopanStoreVPN-libXray.aar`.
 
 **♻️ Teknik Mutakhir: Pembaruan Satu Kali Upload**
-Jika sewaktu-waktu ada rilis versi dari modul *core* (seperti update mesin protokol Xray / tun2socks), Anda **hanya perlu menimpa (replace)** versi rilis yang tersemat pada *tag* inary-assets. 
+Jika sewaktu-waktu ada rilis versi dari modul *core* (seperti update mesin protokol Xray / tun2socks), Anda **hanya perlu menimpa (replace)** versi rilis yang tersemat pada *tag* `binary-assets`. 
 Kemudian, seluruh skema *Build* di lokal Anda dan tahapan pipeline (CI/CD) akan **otomatis menarik berkas dengan versi terbaru tadi**! Ini memangkas habis keharusan repot-repot *commit* file raksasa ke riwayat git log proyek utama!
 
 ---
