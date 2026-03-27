@@ -51,6 +51,10 @@ echo "🔨 Building libbox.aar (targets: ${TARGETS})..."
 echo "   Tags: ${BUILD_TAGS}"
 echo "   This may take 5-15 minutes..."
 
+# Ensure dependencies are available for gomobile
+go mod download
+go get golang.org/x/mobile/bind
+
 gomobile bind \
     -target="${TARGETS}" \
     -androidapi 24 \

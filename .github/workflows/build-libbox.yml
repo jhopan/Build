@@ -75,6 +75,9 @@ jobs:
           echo "  Target: android/arm64,android/arm"
           echo "========================================="
 
+          go mod download
+          go get golang.org/x/mobile/bind
+
           gomobile bind \
             -target=android/arm64,android/arm \
             -androidapi 24 \
