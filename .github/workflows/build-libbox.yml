@@ -12,7 +12,7 @@ on:
         default: 'v1.11.0'
 
 env:
-  GO_VERSION: '1.22.12'
+  GO_VERSION: '1.23.6'
   SINGBOX_VERSION: 'v1.11.0'
   GOTOOLCHAIN: local
   GOFLAGS: -gcflags=all=-l
@@ -78,16 +78,18 @@ jobs:
           echo "  Target: android/arm64,android/arm"
           echo "========================================="
 
-          # Critical fix for "no Go package in golang.org/x/mobile/bind"
-          # Link the cloned x/mobile source directly into the build context
-          go mod edit -replace golang.org/x/mobile=../golang-mobile
+          # DEFINITIVE FIX: Use Go Workspaces to link sing-box and golang.org/x/mobile
+          # This ensures 'gobind' can resolve the 'bind' package from the source clone
+          cd ..
+          go work init ./singbox-src ./golang-mobile
+          cd singbox-src
           go mod download
           
           gomobile bind \
             -target=android/arm64,android/arm \
             -androidapi 24 \
             -javapkg=libbox \
-            -tags="with_quic,with_clash_api,with_utls" \
+            -tags="with_quic,with_clash_api,with_utls,with_gvisor" \
             -ldflags="-X github.com/sagernet/sing-box/constant.Version=${{ env.SINGBOX_VERSION }}" \
             ./experimental/libbox
 
