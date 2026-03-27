@@ -12,7 +12,7 @@ on:
         default: 'v1.11.0'
 
 env:
-  GO_VERSION: '1.23.6'
+  GO_VERSION: '1.22.12'
   SINGBOX_VERSION: 'v1.11.0'
   GOTOOLCHAIN: local
   GOFLAGS: -gcflags=all=-l
@@ -46,10 +46,13 @@ jobs:
           yes | sdkmanager --install "ndk;26.1.10909125" --channel=3 2>/dev/null || true
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
 
-      - name: Install gomobile
+      - name: Install gomobile from source
         run: |
-          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20240905140502-386d63d00164
-          go install golang.org/x/mobile/cmd/gobind@v0.0.0-20240905140502-386d63d00164
+          git clone --depth 100 https://github.com/golang/mobile.git golang-mobile
+          cd golang-mobile
+          git checkout fa514ef
+          cd cmd/gomobile && go install
+          cd ../gobind && go install
           echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
       - name: Initialize gomobile
@@ -78,14 +81,12 @@ jobs:
           echo "========================================="
 
           go mod download
-          # The gomobile tool will use the bind package from the tool installation
           
           gomobile bind \
             -target=android/arm64,android/arm \
             -androidapi 24 \
             -javapkg=libbox \
             -tags="with_quic,with_clash_api,with_utls" \
-            -trimpath \
             -ldflags="-X github.com/sagernet/sing-box/constant.Version=${{ env.SINGBOX_VERSION }}" \
             ./experimental/libbox
 

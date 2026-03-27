@@ -31,9 +31,13 @@ fi
 echo "✓ Go: $(go version)"
 
 # Install gomobile
-echo "⬇ Installing gomobile..."
-go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20240905140502-386d63d00164
-go install golang.org/x/mobile/cmd/gobind@v0.0.0-20240905140502-386d63d00164
+echo "⬇ Installing gomobile from source..."
+WORK_DIR_GOMOBILE=$(mktemp -d)
+git clone --depth 100 https://github.com/golang/mobile.git "${WORK_DIR_GOMOBILE}"
+cd "${WORK_DIR_GOMOBILE}"
+git checkout fa514ef
+cd cmd/gomobile && go install
+cd ../gobind && go install
 export PATH="$PATH:$(go env GOPATH)/bin"
 export GOFLAGS="-gcflags=all=-l"
 
@@ -41,11 +45,11 @@ echo "⬇ Initializing gomobile..."
 gomobile init
 
 # Clone sing-box
-WORK_DIR=$(mktemp -d)
-echo "⬇ Cloning sing-box ${SINGBOX_VERSION} to ${WORK_DIR}..."
-git clone --depth 1 --branch "${SINGBOX_VERSION}" https://github.com/SagerNet/sing-box.git "${WORK_DIR}/sing-box"
+WORK_DIR_SINGBOX=$(mktemp -d)
+echo "⬇ Cloning sing-box ${SINGBOX_VERSION} to ${WORK_DIR_SINGBOX}..."
+git clone --depth 1 --branch "${SINGBOX_VERSION}" https://github.com/SagerNet/sing-box.git "${WORK_DIR_SINGBOX}/sing-box"
 
-cd "${WORK_DIR}/sing-box"
+cd "${WORK_DIR_SINGBOX}/sing-box"
 
 # Build libbox.aar
 echo "🔨 Building libbox.aar (targets: ${TARGETS})..."
@@ -60,7 +64,6 @@ gomobile bind \
     -androidapi 24 \
     -javapkg="${JAVA_PKG}" \
     -tags="${BUILD_TAGS}" \
-    -trimpath \
     -ldflags="-X github.com/sagernet/sing-box/constant.Version=${SINGBOX_VERSION}" \
     ./experimental/libbox
 
