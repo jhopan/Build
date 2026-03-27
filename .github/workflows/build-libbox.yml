@@ -12,7 +12,7 @@ on:
         default: 'v1.11.0'
 
 env:
-  GO_VERSION: '1.22.12'
+  GO_VERSION: '1.23.6'
   SINGBOX_VERSION: 'v1.11.0'
   GOTOOLCHAIN: local
   GOFLAGS: -gcflags=all=-l
@@ -48,8 +48,8 @@ jobs:
 
       - name: Install gomobile
         run: |
-          go install golang.org/x/mobile/cmd/gomobile@latest
-          go install golang.org/x/mobile/cmd/gobind@latest
+          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20240905140502-386d63d00164
+          go install golang.org/x/mobile/cmd/gobind@v0.0.0-20240905140502-386d63d00164
           echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
       - name: Initialize gomobile
@@ -78,8 +78,8 @@ jobs:
           echo "========================================="
 
           go mod download
-          go get golang.org/x/mobile/bind
-
+          # The gomobile tool will use the bind package from the tool installation
+          
           gomobile bind \
             -target=android/arm64,android/arm \
             -androidapi 24 \
