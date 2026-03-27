@@ -53,6 +53,7 @@ echo "   This may take 5-15 minutes..."
 
 gomobile bind \
     -target="${TARGETS}" \
+    -androidapi 24 \
     -javapkg="${JAVA_PKG}" \
     -tags="${BUILD_TAGS}" \
     -trimpath \
