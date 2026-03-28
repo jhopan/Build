@@ -30,12 +30,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import libbox.CommandServer
-import libbox.CommandServerHandler
-import libbox.Libbox
-import libbox.PlatformInterface
-import libbox.SetupOptions
-import libbox.TunOptions
+import io.github.sagernet.libbox.CommandServer
+import io.github.sagernet.libbox.CommandServerHandler
+import io.github.sagernet.libbox.Libbox
+import io.github.sagernet.libbox.PlatformInterface
+import io.github.sagernet.libbox.SetupOptions
+import io.github.sagernet.libbox.TunOptions
 import java.io.IOException
 
 /**
@@ -305,18 +305,21 @@ class JhopanVpnService : VpnService() {
 
         override fun usePlatformAutoDetectInterfaceControl(): Boolean = true
         override fun autoDetectControl(fd: Int) { protect(fd) }
-        override fun findProcessInfo(ipProtocol: Int, sourceAddress: String, sourcePort: Int, destinationAddress: String, destinationPort: Int): libbox.ProcessInfo? = null
+        override fun findProcessInfo(ipProtocol: Int, sourceAddress: String, sourcePort: Int, destinationAddress: String, destinationPort: Int): io.github.sagernet.libbox.ProcessInfo? = null
         override fun packageNameByUid(uid: Int): String = ""
         override fun uidByPackageName(packageName: String): Int = 0
         override fun usePlatformDefaultInterfaceMonitor(): Boolean = true
-        override fun startDefaultInterfaceMonitor(listener: libbox.InterfaceUpdateListener) {}
-        override fun closeDefaultInterfaceMonitor(listener: libbox.InterfaceUpdateListener) {}
+        override fun startDefaultInterfaceMonitor(listener: io.github.sagernet.libbox.InterfaceUpdateListener) {}
+        override fun closeDefaultInterfaceMonitor(listener: io.github.sagernet.libbox.InterfaceUpdateListener) {}
         override fun usePlatformInterfaceGetter(): Boolean = false
-        override fun getInterfaces(): libbox.NetworkInterfaceIterator? = null
+        override fun getInterfaces(): io.github.sagernet.libbox.NetworkInterfaceIterator? = null
         override fun underNetworkExtension(): Boolean = false
         override fun includeAllNetworks(): Boolean = false
-        override fun readWIFIState(): libbox.WIFIState? = null
+        override fun readWIFIState(): io.github.sagernet.libbox.WIFIState? = null
         override fun clearDNSCache() {}
+        override fun useProcFS(): Boolean = false
+        override fun writeLog(message: String) { Log.d(TAG, message) }
+        override fun postNotification(notification: io.github.sagernet.libbox.Notification) {}
     }
 
     // ── CommandServerHandler ──────────────────────────────────────
@@ -331,7 +334,7 @@ class JhopanVpnService : VpnService() {
             reconnectAttempts = 0
         }
 
-        override fun serviceReload(options: libbox.OverrideOptions?) {
+        override fun serviceReload() {
             Log.i(TAG, "sing-box service reloading")
         }
 
@@ -349,11 +352,8 @@ class JhopanVpnService : VpnService() {
             }
         }
 
-        override fun getSystemProxyStatus(): libbox.SystemProxyStatus? = null
-        override fun setSystemProxyEnabled(isEnabled: Boolean) {}
-
-        override fun postNotification(notification: libbox.Notification?) {}
-        override fun clearNotification(id: Int) {}
+        override fun getSystemProxyStatus(): io.github.sagernet.libbox.SystemProxyStatus? = null
+        override fun setSystemProxyEnabled(enabled: Boolean) {}
     }
 
     override fun onCreate() {

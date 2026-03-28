@@ -16,7 +16,7 @@ set -e
 SINGBOX_VERSION="v1.11.0"
 OUTPUT_DIR="app/libs"
 TARGETS="android/arm64,android/arm"
-JAVA_PKG="libbox"
+JAVA_PKG="io.github.sagernet.libbox"
 BUILD_TAGS="with_quic,with_clash_api,with_utls,with_gvisor"
 
 echo "═══════════════════════════════════════════"
@@ -58,15 +58,14 @@ echo "   This may take 5-15 minutes..."
 # DEFINITIVE FIX: Use Go Workspaces to link sing-box and golang.org/x/mobile
 # This ensures 'gobind' can resolve the 'bind' package from the source clone
 go work init . "${WORK_DIR_GOMOBILE}"
-go mod download
-
+go mod tidy
 gomobile bind \
-    -target="${TARGETS}" \
-    -androidapi 24 \
-    -javapkg="${JAVA_PKG}" \
-    -tags="${BUILD_TAGS}" \
-    -ldflags="-X github.com/sagernet/sing-box/constant.Version=${SINGBOX_VERSION}" \
-    ./experimental/libbox
+            -target=android/arm64,android/arm \
+            -androidapi 24 \
+            -javapkg=io.github.sagernet.libbox \
+            -tags="with_quic,with_clash_api,with_utls,with_gvisor" \
+            -ldflags="-X github.com/sagernet/sing-box/constant.Version=${SINGBOX_VERSION}" \
+            ./experimental/libbox
 
 # Copy to project
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

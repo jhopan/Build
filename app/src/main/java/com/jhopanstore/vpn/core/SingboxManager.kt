@@ -26,6 +26,8 @@ import java.net.InetAddress
  *   - commandServer.startOrReloadService(config, options) — start/reload
  *   - commandServer.closeService()    — stop
  */
+import io.github.sagernet.libbox.Libbox
+
 object SingboxManager {
     private const val TAG = "SingboxManager"
     const val SOCKS_PORT = 10808

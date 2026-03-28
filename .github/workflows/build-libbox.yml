@@ -85,15 +85,13 @@ jobs:
           go work init ./singbox-src ./golang-mobile
           cd singbox-src
           go mod download
-          
           gomobile bind \
             -target=android/arm64,android/arm \
             -androidapi 24 \
-            -javapkg=libbox \
+            -javapkg=io.github.sagernet.libbox \
             -tags="with_quic,with_clash_api,with_utls,with_gvisor" \
             -ldflags="-X github.com/sagernet/sing-box/constant.Version=${{ env.SINGBOX_VERSION }}" \
             ./experimental/libbox
-
           echo "========================================="
           echo "Build complete!"
           ls -lh libbox.aar
