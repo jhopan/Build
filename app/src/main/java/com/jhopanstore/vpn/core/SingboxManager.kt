@@ -6,6 +6,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.Inet4Address
 import java.net.InetAddress
+import io.github.sagernet.libbox.Libbox
 
 /**
  * Manages sing-box core lifecycle on Android using libbox (in-process Go library).
@@ -13,21 +14,12 @@ import java.net.InetAddress
  * Architecture:
  *   Apps → sing-box (TUN built-in + urltest auto-select) → internet
  *
- * Key features over previous Xray approach:
- *   - All-in-one: TUN, proxy, DNS — no tun2socks needed
- *   - urltest outbound group: automatic failover like Clash, zero-restart
- *   - Enhanced Workers detection with per-outbound DNS strategy
+ * Key features:
+ *   - All-in-one: TUN, proxy, DNS in single process
+ *   - urltest outbound group: automatic failover, zero-restart
+ *   - Simplified Workers detection with per-outbound DNS strategy
  *   - PlatformInterface for VPN socket protection
- *
- * libbox API:
- *   - Libbox.setup(options)           — initial setup
- *   - Libbox.checkConfig(json)        — validate config
- *   - CommandServer(handler, platform) — manage service lifecycle
- *   - commandServer.startOrReloadService(config, options) — start/reload
- *   - commandServer.closeService()    — stop
  */
-import io.github.sagernet.libbox.Libbox
-
 object SingboxManager {
     private const val TAG = "SingboxManager"
     const val SOCKS_PORT = 10808
@@ -73,13 +65,15 @@ object SingboxManager {
      */
     fun buildConfig(
         accounts: List<VlessConfig>,
+        basePath: String,
         dns1: String = "8.8.8.8",
         dns2: String = "8.8.4.4",
         resolvedIps: Map<String, String> = emptyMap(),
         urlTestUrl: String = "https://www.gstatic.com/generate_204",
         urlTestInterval: String = "30s",
         urlTestTolerance: Int = 100,
-        mtu: Int = 1400
+        mtu: Int = 1400,
+        customRules: List<Map<String, String>> = emptyList()
     ): String {
         val root = JSONObject()
 
@@ -114,7 +108,7 @@ object SingboxManager {
             val isWorker = WorkerDetector.isCloudflareWorkers(cfg)
             val serverAddress = resolvedIps[cfg.address] ?: cfg.address
 
-            outboundsArray.put(buildVlessOutbound(tag, cfg, serverAddress, isWorker))
+            outboundsArray.put(buildVlessOutbound(tag, cfg, serverAddress))
             Log.i(TAG, "Outbound '$tag': ${cfg.address}:${cfg.port} [${if (isWorker) "Workers" else "VPS"}]")
         }
 
@@ -143,6 +137,10 @@ object SingboxManager {
                 put("tag", "direct")
             })
             finalOutbounds.put(JSONObject().apply {
+                put("type", "block")
+                put("tag", "reject")
+            })
+            finalOutbounds.put(JSONObject().apply {
                 put("type", "dns")
                 put("tag", "dns-out")
             })
@@ -155,14 +153,27 @@ object SingboxManager {
                 put("tag", "direct")
             })
             outboundsArray.put(JSONObject().apply {
+                put("type", "block")
+                put("tag", "reject")
+            })
+            outboundsArray.put(JSONObject().apply {
                 put("type", "dns")
                 put("tag", "dns-out")
             })
             root.put("outbounds", outboundsArray)
         }
 
+        // ── Experimental (cache file in writable directory) ──
+        root.put("experimental", JSONObject().apply {
+            put("cache_file", JSONObject().apply {
+                put("enabled", true)
+                put("path", "$basePath/cache.db")
+                put("store_fakeip", false)
+            })
+        })
+
         // ── Route ──
-        root.put("route", buildRoute(accounts.size > 1))
+        root.put("route", buildRoute(accounts.size > 1, customRules, basePath))
 
         val configJson = root.toString()
         Log.d(TAG, "Generated config: ${configJson.length} bytes")
@@ -259,8 +270,7 @@ object SingboxManager {
     private fun buildVlessOutbound(
         tag: String,
         cfg: VlessConfig,
-        serverAddress: String,
-        isWorker: Boolean
+        serverAddress: String
     ): JSONObject {
         return JSONObject().apply {
             put("type", "vless")
@@ -297,12 +307,40 @@ object SingboxManager {
         }
     }
 
-    private fun buildRoute(hasUrlTest: Boolean): JSONObject {
+    private fun buildRoute(hasUrlTest: Boolean, customRules: List<Map<String, String>>, basePath: String): JSONObject {
         return JSONObject().apply {
-            put("auto_detect_interface", true)
+            // Rely on VpnService.protect() instead of internal interface detection
+            // which fails on Android 11+ without explicit NetworkInterfaceIterator
+            put("auto_detect_interface", false)
             put("override_android_vpn", true)
 
+            // Rule sets definition
             put("rules", JSONArray().apply {
+                // Custom Routing Rules injected directly
+                customRules.forEach { rule ->
+                    val name = rule["name"] ?: ""
+                    val targetOutbound = rule["targetOutbound"] ?: "direct"
+                    val filePath = "$basePath/rules/$name.json"
+                    
+                    val file = java.io.File(filePath)
+                    if (name.isNotBlank() && file.exists()) {
+                        try {
+                            val ruleContent = JSONObject(file.readText())
+                            if (ruleContent.has("rules")) {
+                                val jsonRules = ruleContent.getJSONArray("rules")
+                                for (i in 0 until jsonRules.length()) {
+                                    val ruleObj = jsonRules.getJSONObject(i)
+                                    // Inject outbound target
+                                    ruleObj.put("outbound", targetOutbound)
+                                    put(ruleObj)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e("SingboxManager", "Failed to parse $name.json", e)
+                        }
+                    }
+                }
+
                 // DNS hijacking
                 put(JSONObject().apply {
                     put("protocol", "dns")
