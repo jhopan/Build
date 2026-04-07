@@ -94,6 +94,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var backupAccounts by mutableStateOf(listOf<BackupAccount>())
         private set
 
+    // ── Custom Rules ──
+    data class CustomRule(
+        val name: String,
+        val url: String,
+        val targetOutbound: String
+    )
+    var customRules by mutableStateOf(listOf<CustomRule>())
+        private set
+
     // ── Fallback / URL Test Settings ──
     var fallbackEnabled by mutableStateOf(true)
     var fallbackTestUrl by mutableStateOf("https://www.gstatic.com/generate_204")
@@ -131,6 +140,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         isRestarting = false
                         if (autoPing) startPingLoop() else pingResult = "Off"
                         startUsageUiLoop()
+                        syncAllRulesInBackground()
                     }
                     JhopanVpnService.VpnState.CONNECTING -> {
                         isConnecting = true
@@ -232,6 +242,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val backupUrisJson = buildBackupUrisJson()
         val urlTestInterval = "${parseFallbackTestInterval()}s"
         val urlTestTolerance = parseFallbackTolerance()
+        val customRulesJson = serializeCustomRules()
 
         JhopanVpnService.start(
             context,
@@ -249,7 +260,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             parseNetworkReconnectDelay(),
             if (fallbackEnabled) fallbackTestUrl else "https://www.gstatic.com/generate_204",
             urlTestInterval,
-            urlTestTolerance
+            urlTestTolerance,
+            customRulesJson
         )
 
         timeoutJob?.cancel()
@@ -317,6 +329,100 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             },
             onFailure = { false }
         )
+    }
+
+    // ── Custom Rules Management ──
+
+    fun addCustomRule(rule: CustomRule) {
+        customRules = customRules + rule
+    }
+
+    fun removeCustomRule(index: Int) {
+        if (index in customRules.indices) {
+            val rule = customRules[index]
+            customRules = customRules.toMutableList().apply { removeAt(index) }
+            val file = java.io.File(appContext.filesDir, "rules/${rule.name}.json")
+            if (file.exists()) file.delete()
+        }
+    }
+
+    fun updateCustomRule(index: Int, rule: CustomRule) {
+        if (index in customRules.indices) {
+            customRules = customRules.toMutableList().apply { set(index, rule) }
+        }
+    }
+
+    fun syncRuleFromGithub(name: String, urlString: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val rulesDir = java.io.File(appContext.filesDir, "rules")
+                if (!rulesDir.exists()) rulesDir.mkdirs()
+                
+                val url = URL(urlString)
+                val conn = url.openConnection() as HttpURLConnection
+                conn.connectTimeout = 10000
+                conn.readTimeout = 10000
+                conn.requestMethod = "GET"
+                
+                if (conn.responseCode in 200..299) {
+                    val file = java.io.File(rulesDir, "$name.json")
+                    conn.inputStream.use { input ->
+                        java.io.FileOutputStream(file).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    withContext(Dispatchers.Main) { onSuccess() }
+                } else {
+                    withContext(Dispatchers.Main) { onError("HTTP ${conn.responseCode}") }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) { onError(e.message ?: "Network error") }
+            }
+        }
+    }
+
+    private var isSyncingRules = false
+
+    private fun syncAllRulesInBackground() {
+        if (isSyncingRules || customRules.isEmpty()) return
+        isSyncingRules = true
+        val rulesToSync = customRules
+        viewModelScope.launch(Dispatchers.IO) {
+            var anyChanges = false
+            val rulesDir = java.io.File(appContext.filesDir, "rules")
+            if (!rulesDir.exists()) rulesDir.mkdirs()
+            for (rule in rulesToSync) {
+                if (rule.url.isBlank()) continue
+                val file = java.io.File(rulesDir, "${rule.name}.json")
+                if (file.exists()) continue // Download once, zero-quota friendly
+                
+                try {
+                    val url = URL(rule.url)
+                    val conn = url.openConnection() as HttpURLConnection
+                    conn.connectTimeout = 5000
+                    conn.readTimeout = 5000
+                    if (conn.responseCode in 200..299) {
+                        conn.inputStream.use { input ->
+                            java.io.FileOutputStream(file).use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        anyChanges = true
+                    }
+                } catch (e: Exception) {
+                    Log.e("MainViewModel", "Auto-sync failed for ${rule.name}", e)
+                }
+            }
+            isSyncingRules = false
+            
+            // Fast Refresh: Apply new routes immediately
+            if (anyChanges) {
+                withContext(Dispatchers.Main) {
+                    Log.i("MainViewModel", "Rules downloaded automatically. Triggering Fast Refresh.")
+                    restartVpn(appContext)
+                }
+            }
+        }
     }
 
     // ── Settings toggles ──
@@ -463,6 +569,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val backupUrisJson = buildBackupUrisJson()
             val urlTestInterval = "${parseFallbackTestInterval()}s"
             val urlTestTolerance = parseFallbackTolerance()
+            val customRulesJson = serializeCustomRules()
 
             JhopanVpnService.start(
                 context, uri, backupUrisJson,
@@ -471,7 +578,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 wakeLockEnabled, keepAliveEnabled,
                 parseKeepAliveIntervalSeconds(), parseMaxReconnectAttempts(), parseNetworkReconnectDelay(),
                 if (fallbackEnabled) fallbackTestUrl else "https://www.gstatic.com/generate_204",
-                urlTestInterval, urlTestTolerance
+                urlTestInterval, urlTestTolerance, customRulesJson
             )
 
             val finalState = withTimeoutOrNull(20_000L) {
@@ -519,6 +626,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             .putString("fallbackTestUrl", fallbackTestUrl)
             .putString("fallbackTestInterval", fallbackTestInterval)
             .putString("fallbackTolerance", fallbackTolerance)
+            // Custom Rules
+            .putString("customRules", serializeCustomRules())
 
         if (immediate) {
             editor.commit()
@@ -560,6 +669,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         fallbackTestUrl = p.getString("fallbackTestUrl", "https://www.gstatic.com/generate_204") ?: "https://www.gstatic.com/generate_204"
         fallbackTestInterval = p.getString("fallbackTestInterval", "30") ?: "30"
         fallbackTolerance = p.getString("fallbackTolerance", "100") ?: "100"
+        
+        // Custom Rules
+        val rulesJson = p.getString("customRules", "[]") ?: "[]"
+        customRules = deserializeCustomRules(rulesJson)
 
         if (!autoPing) pingResult = "Off"
     }
@@ -601,6 +714,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun serializeCustomRules(): String {
+        val arr = JSONArray()
+        customRules.forEach { rule ->
+            arr.put(org.json.JSONObject().apply {
+                put("name", rule.name)
+                put("url", rule.url)
+                put("targetOutbound", rule.targetOutbound)
+            })
+        }
+        return arr.toString()
+    }
+
+    private fun deserializeCustomRules(json: String): List<CustomRule> {
+        return try {
+            val arr = JSONArray(json)
+            (0 until arr.length()).map { i ->
+                val obj = arr.getJSONObject(i)
+                CustomRule(
+                    name = obj.optString("name", ""),
+                    url = obj.optString("url", ""),
+                    targetOutbound = obj.optString("targetOutbound", "direct")
+                )
+            }
+        } catch (e: Exception) {
+            Log.w("MainViewModel", "Failed to deserialize custom rules: ${e.message}")
+            emptyList()
+        }
+    }
+
     fun syncConnectionState() {
         val running = JhopanVpnService.isRunning
         if (running && !isConnected && !isConnecting) {
@@ -609,6 +751,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             statusText = "Connected"
             if (autoPing) startPingLoop() else pingResult = "Off"
             startUsageUiLoop()
+            syncAllRulesInBackground()
         } else if (!running && isConnected) {
             isConnected = false
             isConnecting = false
